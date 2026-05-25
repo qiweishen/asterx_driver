@@ -1,0 +1,9 @@
+[project]
+name = "asterx-driver"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "sbf-parser>=1.0.3",
+]

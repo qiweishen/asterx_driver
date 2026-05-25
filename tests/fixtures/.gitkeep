@@ -1,0 +1,10 @@
+# This directory holds captured SBF binary fixtures used by replay tests
+# (Phase 3+).  At Phase 2B it intentionally contains only this placeholder.
+#
+# Fixtures will include:
+#   ext_sensor_meas.sbf          one valid IMU frame
+#   meas_epoch_30sv.sbf          MeasEpoch with 30 satellites in view
+#   meas_epoch_corrupt_crc.sbf   same frame with one bit flipped in body
+#   meas_epoch_truncated.sbf     frame missing trailing bytes
+#   measepoch_oversize.sbf       declared Length > kMaxSbfLength (DoS guard)
+#

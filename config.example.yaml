@@ -1,0 +1,50 @@
+# asterx_driver — example config
+#
+# Copy to config.yaml and edit. Pass via --config config.yaml.
+
+connection:
+  host:     "10.95.76.111"    # receiver IP or hostname
+  port:     28784             # plaintext control TCP port (28783 = TLS, not implemented)
+  user:     "admin"
+  password: "septentrio"
+
+receiver:
+  # The receiver opens an IPS server on this port; we connect to it for SBF bytes.
+  ips_id:    1                # IPS1..IPS5
+  ips_port:  28785
+
+  imu:
+    use_sensor_default: true  # if false, use the explicit angles below
+    theta_x_deg: 0.0
+    theta_y_deg: 0.0
+    theta_z_deg: 0.0
+
+  # SBF streams to enable on the receiver. Each stream pushes a list of
+  # blocks at a single rate (MsgInterval token). Allowed intervals:
+  #   msec5 msec10 msec20 msec40 msec50 msec100 msec200 msec500
+  #   sec1 sec2 sec5 sec10 sec15 sec30 sec60
+  streams:
+    - id:       1
+      blocks:   [ "ExtSensorMeas" ]                                           # IMU @ 200 Hz
+      interval: "msec5"
+    - id:       2
+      blocks:   [ "MeasEpoch", "MeasExtra", "EndOfMeas" ]                     # raw obs @ 10 Hz
+      interval: "msec100"
+    - id:       3
+      blocks:   [ "AuxAntPositions", "AttEuler", "AttCovEuler", "EndOfAtt" ]  # baseline + attitude @ 10 Hz
+      interval: "msec100"
+    - id:       4
+      blocks:   [ "ReceiverStatus", "QualityInd", "ReceiverTime" ]            # health @ 1 Hz
+      interval: "sec1"
+
+output:
+  dir:                 "./recordings"
+  file_prefix:         "asterx"
+  rotate_bytes:        1073741824     # 1 GiB
+  rotate_interval_s:   3600           # 1 hour
+
+log:
+  dir:        "./logs"
+  level:      "info"                  # trace|debug|info|warn|err|critical
+  max_size:   104857600               # 100 MiB per file
+  max_files:  5

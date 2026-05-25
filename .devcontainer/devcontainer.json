@@ -1,0 +1,19 @@
+{
+    "name": "Sensor Dev",
+    "dockerComposeFile": "../Docker/docker-compose.yml",
+    "service": "sensor-dev",
+    "workspaceFolder": "/workspace",
+
+    // Container user settings
+    "remoteUser": "dev",
+    "updateRemoteUserUID": false,
+
+	"customizations": {
+		"jetbrains": {
+			"backend": "CLion",
+		}
+    },
+
+    // Keep container running for CLion remote toolchain connection
+    "shutdownAction": "none"
+}
