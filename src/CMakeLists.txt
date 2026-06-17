@@ -24,7 +24,7 @@ target_link_libraries(asterx_core
     PUBLIC
         Threads::Threads
     PRIVATE
-        spdlog::spdlog
+        asterx::spdlog
         yaml-cpp)
 
 target_compile_features(asterx_core PUBLIC cxx_std_17)
@@ -40,7 +40,7 @@ add_executable(asterx_driver main.cpp)
 target_link_libraries(asterx_driver
     PRIVATE
         asterx::core
-        spdlog::spdlog
+        asterx::spdlog
         yaml-cpp)
 
 asterx_set_warnings(asterx_driver)

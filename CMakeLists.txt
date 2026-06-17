@@ -38,6 +38,22 @@ find_package(yaml-cpp REQUIRED)
 # spdlog: system package (libspdlog-dev on Ubuntu 20.04 = 1.5.0).
 find_package(spdlog REQUIRED)
 
+# Some environments expose system spdlog but a newer Homebrew fmt earlier in
+# the include path via another dependency. The compiled spdlog target exports
+# SPDLOG_FMT_EXTERNAL in that case, which can mix incompatible spdlog/fmt
+# versions. Use spdlog header-only mode with its bundled fmt headers instead.
+add_library(asterx_spdlog INTERFACE)
+add_library(asterx::spdlog ALIAS asterx_spdlog)
+target_compile_definitions(asterx_spdlog INTERFACE SPDLOG_HEADER_ONLY)
+foreach(_spdlog_target spdlog::spdlog_header_only spdlog::spdlog)
+    if(TARGET ${_spdlog_target})
+        get_target_property(_spdlog_includes ${_spdlog_target} INTERFACE_INCLUDE_DIRECTORIES)
+        if(_spdlog_includes)
+            target_include_directories(asterx_spdlog INTERFACE ${_spdlog_includes})
+        endif()
+    endif()
+endforeach()
+
 # Google Test for unit tests only (FetchContent — keeps build hermetic).
 if(ASTERX_BUILD_TESTS)
     include(FetchContent)
