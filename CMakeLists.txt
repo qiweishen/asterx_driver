@@ -44,7 +44,9 @@ find_package(spdlog REQUIRED)
 # versions. Use spdlog header-only mode with its bundled fmt headers instead.
 add_library(asterx_spdlog INTERFACE)
 add_library(asterx::spdlog ALIAS asterx_spdlog)
-target_compile_definitions(asterx_spdlog INTERFACE SPDLOG_HEADER_ONLY)
+target_compile_definitions(asterx_spdlog INTERFACE
+    SPDLOG_HEADER_ONLY
+    FMT_HEADER_ONLY)
 foreach(_spdlog_target spdlog::spdlog_header_only spdlog::spdlog)
     if(TARGET ${_spdlog_target})
         get_target_property(_spdlog_includes ${_spdlog_target} INTERFACE_INCLUDE_DIRECTORIES)
