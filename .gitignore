@@ -36,6 +36,8 @@ recordings/
 # Local development scratch
 *.local
 .claude/
+.codex/
+.agents/
 scratch/
 CLAUDE.md
 
