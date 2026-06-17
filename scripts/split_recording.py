@@ -15,6 +15,7 @@ Outputs (in output_dir, default = the input file's directory):
 
 Both .sbf outputs are valid SBF streams ready to feed into sbf2rin / convbin.
 """
+
 import csv
 import math
 import os
@@ -23,10 +24,7 @@ import sys
 from collections import defaultdict
 
 
-# ---------------------------------------------------------------------------
 # CRC and frame rebuild
-# ---------------------------------------------------------------------------
-
 def crc_ccitt_xmodem(data):
     """CRC-16/XMODEM: poly=0x1021, init=0x0000, no reflection."""
     crc = 0
@@ -45,22 +43,19 @@ def rebuild_sbf_frame(raw_id, body):
     ready to write.
     """
     body_size = len(body)
-    total     = 8 + body_size
-    pad       = (-total) % 4
-    body_pad  = body + b"\x00" * pad
-    length    = 8 + len(body_pad)
+    total = 8 + body_size
+    pad = (-total) % 4
+    body_pad = body + b"\x00" * pad
+    length = 8 + len(body_pad)
 
     crc_input = struct.pack("<HH", raw_id, length) + body_pad
-    crc       = crc_ccitt_xmodem(crc_input)
+    crc = crc_ccitt_xmodem(crc_input)
 
     header = struct.pack("<BBHHH", 0x24, 0x40, crc, raw_id, length)
     return header + body_pad
 
 
-# ---------------------------------------------------------------------------
 # MeasEpoch (4027) split by AntennaID
-# ---------------------------------------------------------------------------
-
 def split_meas_epoch(body):
     """Split a MeasEpoch v2 body. Returns:
        per_ant_body: dict {ant: bytes} — new body bytes per antenna (no SBF header)
@@ -70,15 +65,15 @@ def split_meas_epoch(body):
     if len(body) < 12:
         return {}, {}, 0
 
-    tow         = struct.unpack_from("<I", body, 0)[0]
-    wnc         = struct.unpack_from("<H", body, 4)[0]
-    n1          = body[6]
-    sb1l        = body[7]
-    sb2l        = body[8]
-    common_tail = bytes(body[9:12])    # CommonFlags, CumClkJumps, Reserved
+    tow = struct.unpack_from("<I", body, 0)[0]
+    wnc = struct.unpack_from("<H", body, 4)[0]
+    n1 = body[6]
+    sb1l = body[7]
+    sb2l = body[8]
+    common_tail = bytes(body[9:12])  # CommonFlags, CumClkJumps, Reserved
 
-    keep_groups = defaultdict(bytearray)   # ant -> raw bytes of kept Type1+Type2 groups
-    keep_idx    = defaultdict(list)        # ant -> list of Type1 indices kept
+    keep_groups = defaultdict(bytearray)  # ant -> raw bytes of kept Type1+Type2 groups
+    keep_idx = defaultdict(list)  # ant -> list of Type1 indices kept
     aux2_dropped = 0
 
     off = 12
@@ -89,12 +84,12 @@ def split_meas_epoch(body):
         group_size = sb1l + n2 * sb2l
         if off + group_size > len(body):
             break
-        group     = body[off : off + group_size]
+        group = body[off: off + group_size]
         # Per the AsteRx firmware reference, the Type byte (sub-block offset 1)
         # packs SignalType in bits 0-4 and AntennaID in bits 5-7. ObsInfo
         # (offset 18) carries lock / smoothing flags, NOT AntennaID.
         type_byte = body[off + 1]
-        ant       = (type_byte >> 5) & 0x07
+        ant = (type_byte >> 5) & 0x07
 
         if ant in (0, 1):
             keep_groups[ant].extend(group)
@@ -116,22 +111,19 @@ def split_meas_epoch(body):
     return per_ant_body, keep_idx, aux2_dropped
 
 
-# ---------------------------------------------------------------------------
 # MeasExtra (4000) split by AntennaID, using the index map from MeasEpoch.
 #
 # MeasExtra contains N sub-blocks aligned 1:1 with MeasEpoch's Type1 sub-blocks
 # (same TOW, same order). Drop the same indices the MeasEpoch split dropped.
-# ---------------------------------------------------------------------------
-
 def split_meas_extra(body, keep_idx):
     if len(body) < 12:
         return {}
 
-    tow         = struct.unpack_from("<I", body, 0)[0]
-    wnc         = struct.unpack_from("<H", body, 4)[0]
-    n           = body[6]
-    sbl         = body[7]
-    header_tail = bytes(body[8:12])    # DopplerVarFactor + reserved bytes
+    tow = struct.unpack_from("<I", body, 0)[0]
+    wnc = struct.unpack_from("<H", body, 4)[0]
+    n = body[6]
+    sbl = body[7]
+    header_tail = bytes(body[8:12])  # DopplerVarFactor + reserved bytes
 
     # Pull out each sub-block's raw bytes by index.
     sub_off = 12
@@ -139,7 +131,7 @@ def split_meas_extra(body, keep_idx):
     for _ in range(n):
         if sub_off + sbl > len(body):
             break
-        sub_bytes.append(bytes(body[sub_off : sub_off + sbl]))
+        sub_bytes.append(bytes(body[sub_off: sub_off + sbl]))
         sub_off += sbl
 
     per_ant_body = {}
@@ -163,23 +155,22 @@ def split_meas_extra(body, keep_idx):
 # ExtSensorMeas (4050) decoder — pulls accel + gyro from a single epoch.
 #
 # Each Type1 sub-block (typical SBLength = 28 bytes):
-#   byte 0: Source        (32 = internal SPI for the AsteRx-i3 built-in IMU)
+#   byte 0: Source              (32 = internal SPI for the AsteRx-i3 built-in IMU)
 #   byte 1: SensorModel
-#   byte 2: Type          (0 = Accel,  1 = AngularRate,  3 = Info, ...)
+#   byte 2: Type                (0 = Accel,  1 = AngularRate,  3 = Info, ...)
 #   byte 3: ObsInfo / reserved
 #   bytes 4..11:  X (f8)
 #   bytes 12..19: Y (f8)
 #   bytes 20..27: Z (f8)
 #
-# Accel is m/s^2 (SBF). Gyro is rad/s (SBF) — we convert to deg/s for the CSV.
+# Accel is m/s^2 (SBF). Gyro is degree/s (SBF)
 # ---------------------------------------------------------------------------
-
 def decode_ext_sensor_meas(body):
     if len(body) < 8:
         return None
     tow = struct.unpack_from("<I", body, 0)[0]
     wnc = struct.unpack_from("<H", body, 4)[0]
-    n   = body[6]
+    n = body[6]
     sbl = body[7]
 
     ax = ay = az = None
@@ -196,16 +187,13 @@ def decode_ext_sensor_meas(body):
             if typ == 0:
                 ax, ay, az = x, y, z
             else:
-                wx, wy, wz = math.degrees(x), math.degrees(y), math.degrees(z)
+                wx, wy, wz = x, y, z
         off += sbl
 
     return tow, wnc, ax, ay, az, wx, wy, wz
 
 
-# ---------------------------------------------------------------------------
 # Output verification: re-scan an emitted .sbf and validate every CRC.
-# ---------------------------------------------------------------------------
-
 def verify_sbf(path):
     with open(path, "rb") as f:
         data = f.read()
@@ -220,7 +208,7 @@ def verify_sbf(path):
         if length < 8 or length > 8188 or length % 4 != 0 or i + length > n:
             i += 1
             continue
-        if crc_ccitt_xmodem(data[i + 4 : i + length]) != crc:
+        if crc_ccitt_xmodem(data[i + 4: i + length]) != crc:
             crc_fails += 1
             i += 1
             continue
@@ -228,10 +216,6 @@ def verify_sbf(path):
         i += length
     return frames, crc_fails
 
-
-# ---------------------------------------------------------------------------
-# Driver
-# ---------------------------------------------------------------------------
 
 def fmt(n):
     return f"{n:,}"
@@ -246,36 +230,33 @@ def main(argv):
     out_dir = argv[2] if len(argv) >= 3 else (os.path.dirname(in_path) or ".")
     os.makedirs(out_dir, exist_ok=True)
 
-    base      = os.path.splitext(os.path.basename(in_path))[0]
+    base = os.path.splitext(os.path.basename(in_path))[0]
     main_path = os.path.join(out_dir, f"{base}-main.sbf")
     aux1_path = os.path.join(out_dir, f"{base}-aux1.sbf")
-    imu_path  = os.path.join(out_dir, f"{base}-imu.csv")
+    imu_path = os.path.join(out_dir, f"{base}-imu.csv")
 
     with open(in_path, "rb") as f:
         data = f.read()
     n = len(data)
 
     stats = {
-        "frames_total":         0,
-        "meas_epoch":           0,
-        "meas_extra":           0,
-        "ext_sensor_meas":      0,
-        "passthrough":          0,
-        "main_subblocks":       0,
-        "aux1_subblocks":       0,
-        "aux2_subblocks":       0,
-        "imu_rows":             0,
-        "crc_failures":         0,
-        "extra_no_meas":        0,
+        "frames_total": 0,
+        "meas_epoch": 0,
+        "meas_extra": 0,
+        "ext_sensor_meas": 0,
+        "passthrough": 0,
+        "main_subblocks": 0,
+        "aux1_subblocks": 0,
+        "aux2_subblocks": 0,
+        "imu_rows": 0,
+        "crc_failures": 0,
+        "extra_no_meas": 0,
     }
 
-    last_keep_idx = {}    # MeasEpoch -> MeasExtra correspondence (same TOW)
+    last_keep_idx = {}  # MeasEpoch -> MeasExtra correspondence (same TOW)
     last_meas_tow = None
 
-    with open(main_path, "wb") as f_main, \
-         open(aux1_path, "wb") as f_aux1, \
-         open(imu_path,  "w", newline="") as f_csv:
-
+    with open(main_path, "wb") as f_main, open(aux1_path, "wb") as f_aux1, open(imu_path, "w", newline="") as f_csv:
         csv_w = csv.writer(f_csv)
         csv_w.writerow([
             "GPS_Week", "GPS_MS[ms]",
@@ -293,15 +274,15 @@ def main(argv):
             if length < 8 or length > 8188 or length % 4 != 0 or i + length > n:
                 i += 1
                 continue
-            if crc_ccitt_xmodem(data[i + 4 : i + length]) != crc:
+            if crc_ccitt_xmodem(data[i + 4: i + length]) != crc:
                 stats["crc_failures"] += 1
                 i += 1
                 continue
 
             stats["frames_total"] += 1
-            body = data[i + 8 : i + length]
+            body = data[i + 8: i + length]
 
-            if bid == 4027:                                # MeasEpoch
+            if bid == 4027:  # MeasEpoch
                 stats["meas_epoch"] += 1
                 per_ant, keep_idx, aux2 = split_meas_epoch(body)
                 stats["aux2_subblocks"] += aux2
@@ -314,7 +295,7 @@ def main(argv):
                 if 1 in per_ant:
                     f_aux1.write(rebuild_sbf_frame(raw_id, per_ant[1]))
 
-            elif bid == 4000:                              # MeasExtra
+            elif bid == 4000:  # MeasExtra
                 stats["meas_extra"] += 1
                 this_tow = struct.unpack_from("<I", body, 0)[0]
                 if not last_keep_idx or this_tow != last_meas_tow:
@@ -326,7 +307,7 @@ def main(argv):
                     if 1 in per_ant:
                         f_aux1.write(rebuild_sbf_frame(raw_id, per_ant[1]))
 
-            elif bid == 4050:                              # ExtSensorMeas
+            elif bid == 4050:  # ExtSensorMeas
                 stats["ext_sensor_meas"] += 1
                 dec = decode_ext_sensor_meas(body)
                 if dec is not None:
@@ -342,23 +323,19 @@ def main(argv):
                     ])
                     stats["imu_rows"] += 1
 
-            else:                                          # pass-through
+            else:  # pass-through
                 stats["passthrough"] += 1
-                frame_bytes = data[i : i + length]
+                frame_bytes = data[i: i + length]
                 f_main.write(frame_bytes)
                 f_aux1.write(frame_bytes)
 
             i += length
 
-    # ------------------------------------------------------------------
     # Verify output files: every emitted frame must validate CRC.
-    # ------------------------------------------------------------------
     main_frames, main_bad = verify_sbf(main_path)
     aux1_frames, aux1_bad = verify_sbf(aux1_path)
 
-    # ------------------------------------------------------------------
     # Print summary
-    # ------------------------------------------------------------------
     print(f"Input:  {in_path}  ({fmt(n)} bytes)")
     print(f"Outputs:")
     print(f"  {main_path}  ({fmt(os.path.getsize(main_path))} bytes, "

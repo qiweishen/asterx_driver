@@ -4,6 +4,7 @@
 #
 
 set(ASTERX_CORE_SOURCES
+    app_config.cpp
     sbf/crc16_xmodem.cpp
     sbf/frame_sync.cpp
     tcp_client.cpp

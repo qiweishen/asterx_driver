@@ -18,10 +18,10 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 endif()
 
-option(ASTERX_BUILD_TESTS  "Build unit tests" ON)
-option(ASTERX_ENABLE_ASAN  "Enable AddressSanitizer"          OFF)
-option(ASTERX_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
-option(ASTERX_ENABLE_TSAN  "Enable ThreadSanitizer"            OFF)
+option(ASTERX_BUILD_TESTS  "Build unit tests"                   ON )
+option(ASTERX_ENABLE_ASAN  "Enable AddressSanitizer"            OFF)
+option(ASTERX_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer"  OFF)
+option(ASTERX_ENABLE_TSAN  "Enable ThreadSanitizer"             OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(CompilerWarnings)
@@ -64,7 +64,7 @@ endif()
 # Summary.
 # ---------------------------------------------------------------------------
 message(STATUS "")
-message(STATUS "----------------- asterx_driver ${PROJECT_VERSION} (slim) -----------------")
+message(STATUS "----------------- asterx_driver ${PROJECT_VERSION} -----------------")
 message(STATUS "  CMAKE_BUILD_TYPE      : ${CMAKE_BUILD_TYPE}")
 message(STATUS "  CMAKE_CXX_COMPILER    : ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "  ASTERX_BUILD_TESTS    : ${ASTERX_BUILD_TESTS}")

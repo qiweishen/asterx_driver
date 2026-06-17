@@ -720,4 +720,30 @@ TEST(FrameSync, EmitThenStallDoesNotOverDrain) {
     EXPECT_EQ(sync.stats().resyncs,        0u);
 }
 
+// TC18: Required collection block IDs from the AsteRx-i3 D Pro+ v1.5.2 guide
+// round-trip through FrameSync. These are the core blocks for full GNSS raw
+// observations and IMU setup/raw measurements.
+TEST(FrameSync, RequiredCollectionBlockIdsRoundTrip) {
+    asterx::sbf::SbfFrameSync sync;
+    std::vector<asterx::sbf::Frame> out;
+
+    const auto meas_epoch = build_frame(4027u);
+    const auto ext_sensor_meas = build_frame(4050u);
+    const auto imu_setup = build_frame(4224u);
+
+    std::vector<std::uint8_t> input;
+    input.insert(input.end(), meas_epoch.begin(), meas_epoch.end());
+    input.insert(input.end(), ext_sensor_meas.begin(), ext_sensor_meas.end());
+    input.insert(input.end(), imu_setup.begin(), imu_setup.end());
+
+    feed_all(sync, input, out);
+
+    ASSERT_EQ(out.size(), 3u);
+    EXPECT_EQ(out[0].blockId(), 4027u);
+    EXPECT_EQ(out[1].blockId(), 4050u);
+    EXPECT_EQ(out[2].blockId(), 4224u);
+    EXPECT_EQ(sync.stats().crc_failed, 0u);
+    EXPECT_EQ(sync.stats().length_invalid, 0u);
+}
+
 }  // namespace

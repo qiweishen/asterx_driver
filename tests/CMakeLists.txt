@@ -1,7 +1,7 @@
 #
 # Slim unit tests.  Two suites:
 #   asterx_test_crc16_xmodem  - CRC sanity (canonical vectors)
-#   asterx_test_frame_sync    - SBF byte-machine (16 cases)
+#   asterx_test_frame_sync    - SBF byte-machine
 #
 
 include(GoogleTest)
@@ -34,5 +34,11 @@ endfunction()
 
 asterx_add_test(asterx_test_crc16_xmodem
     SRCS test_crc16_xmodem.cpp)
+
+asterx_add_test(asterx_test_receiver_config
+    SRCS test_receiver_config.cpp)
+
+asterx_add_test(asterx_test_app_config
+    SRCS test_app_config.cpp)
 
 add_subdirectory(unit/sbf)

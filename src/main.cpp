@@ -21,8 +21,8 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include <yaml-cpp/yaml.h>
 
+#include "app_config.hpp"
 #include "tcp_client.hpp"
 #include "receiver_config.hpp"
 #include "sbf_recorder.hpp"
@@ -32,88 +32,12 @@ namespace {
 
     void on_signal(int /*sig*/) { g_stop.store(true, std::memory_order_relaxed); }
 
-    struct AppConfig {
-        // [connection]
-        std::string host{"192.168.3.1"};
-        std::uint16_t ctrl_port{28784};
-        std::string user{"admin"};
-        std::string password{"admin"};
-
-        // [output]
-        std::filesystem::path output_dir{"./recordings"};
-        std::string file_prefix{"asterx"};
-        std::uint64_t rotate_bytes{1ull << 30};
-        int rotate_interval_seconds{3600};
-
-        // [log]
-        std::filesystem::path log_dir{"./logs"};
-        std::string log_level{"info"};
-        std::uint64_t log_max_size{100ull * 1024 * 1024};
-        int log_max_files{5};
-
-        // [receiver]
-        asterx::ReceiverSettings receiver{};
-    };
-
     [[noreturn]] void die(const std::string &msg, int code = 2) {
         std::cerr << "asterx_driver: " << msg << "\n";
         std::exit(code);
     }
 
-    AppConfig load_config(const std::string &path) {
-        AppConfig c;
-        YAML::Node root;
-        try {
-            root = YAML::LoadFile(path);
-        } catch (const std::exception &e) {
-            die(std::string("failed to load config '") + path + "': " + e.what());
-        }
-
-        if (auto n = root["connection"]) {
-            if (n["host"]) c.host = n["host"].as<std::string>();
-            if (n["port"]) c.ctrl_port = static_cast<std::uint16_t>(n["port"].as<int>());
-            if (n["user"]) c.user = n["user"].as<std::string>();
-            if (n["password"]) c.password = n["password"].as<std::string>();
-        }
-        if (auto n = root["output"]) {
-            if (n["dir"]) c.output_dir = n["dir"].as<std::string>();
-            if (n["file_prefix"]) c.file_prefix = n["file_prefix"].as<std::string>();
-            if (n["rotate_bytes"]) c.rotate_bytes = n["rotate_bytes"].as<std::uint64_t>();
-            if (n["rotate_interval_s"]) c.rotate_interval_seconds = n["rotate_interval_s"].as<int>();
-        }
-        if (auto n = root["log"]) {
-            if (n["dir"]) c.log_dir = n["dir"].as<std::string>();
-            if (n["level"]) c.log_level = n["level"].as<std::string>();
-            if (n["max_size"]) c.log_max_size = n["max_size"].as<std::uint64_t>();
-            if (n["max_files"]) c.log_max_files = n["max_files"].as<int>();
-        }
-        if (auto n = root["receiver"]) {
-            if (n["ips_id"]) c.receiver.ips_id = n["ips_id"].as<int>();
-            if (n["ips_port"]) c.receiver.ips_port = static_cast<std::uint16_t>(n["ips_port"].as<int>());
-            if (n["imu"]) {
-                auto im = n["imu"];
-                if (im["use_sensor_default"]) c.receiver.use_sensor_default = im["use_sensor_default"].as<bool>();
-                if (im["theta_x_deg"]) c.receiver.theta_x_deg = im["theta_x_deg"].as<double>();
-                if (im["theta_y_deg"]) c.receiver.theta_y_deg = im["theta_y_deg"].as<double>();
-                if (im["theta_z_deg"]) c.receiver.theta_z_deg = im["theta_z_deg"].as<double>();
-            }
-            if (n["streams"] && n["streams"].IsSequence()) {
-                c.receiver.streams.clear();
-                for (const auto &s: n["streams"]) {
-                    asterx::SbfStream st;
-                    st.stream_id = s["id"].as<int>();
-                    st.interval = s["interval"].as<std::string>();
-                    for (const auto &b: s["blocks"]) st.blocks.push_back(b.as<std::string>());
-                    c.receiver.streams.push_back(std::move(st));
-                }
-            }
-        }
-        c.receiver.user = c.user;
-        c.receiver.password = c.password;
-        return c;
-    }
-
-    void setup_logging(const AppConfig &cfg) {
+    void setup_logging(const asterx::AppConfig &cfg) {
         std::error_code ec;
         std::filesystem::create_directories(cfg.log_dir, ec);
 
@@ -150,8 +74,12 @@ int main(int argc, char **argv) {
         if (a == "--help" || a == "-h") {
             print_usage();
             return 0;
-        } else if (a == "--config" && i + 1 < argc) { config_path = argv[++i]; } else if (
-            a == "--log-level" && i + 1 < argc) { log_level_override = argv[++i]; } else {
+        }
+        if (a == "--config" && i + 1 < argc) {
+            config_path = argv[++i];
+        } else if (a == "--log-level" && i + 1 < argc) {
+            log_level_override = argv[++i];
+        } else {
             print_usage();
             return 3;
         }
@@ -161,7 +89,12 @@ int main(int argc, char **argv) {
         return 3;
     }
 
-    AppConfig cfg = load_config(config_path);
+    asterx::AppConfig cfg;
+    try {
+        cfg = asterx::load_app_config(config_path);
+    } catch (const std::exception &e) {
+        die(e.what());
+    }
     if (!log_level_override.empty()) {
         cfg.log_level = log_level_override;
     }
