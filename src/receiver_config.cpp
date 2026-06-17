@@ -82,9 +82,12 @@ namespace asterx {
             return out;
         }
 
-        std::string fmt6(double v) {
+        std::string fmt_command_decimal(double v) {
+            if (std::fabs(v) < 0.0005) {
+                v = 0.0;
+            }
             std::ostringstream os;
-            os << std::fixed << std::setprecision(6) << v;
+            os << std::fixed << std::setprecision(3) << v;
             return os.str();
         }
 
@@ -152,12 +155,14 @@ namespace asterx {
                 return "setIMUOrientation, SensorDefault";
             }
             return "setIMUOrientation, " + settings.imu_orientation_mode + ", " +
-                   fmt6(settings.theta_x_deg) + ", " + fmt6(settings.theta_y_deg) + ", " +
-                   fmt6(settings.theta_z_deg);
+                   fmt_command_decimal(settings.theta_x_deg) + ", " +
+                   fmt_command_decimal(settings.theta_y_deg) + ", " +
+                   fmt_command_decimal(settings.theta_z_deg);
         }
 
         std::string set_vec3_command(const std::string &name, Vec3 v) {
-            return name + ", " + fmt6(v.x) + ", " + fmt6(v.y) + ", " + fmt6(v.z);
+            return name + ", " + fmt_command_decimal(v.x) + ", " +
+                   fmt_command_decimal(v.y) + ", " + fmt_command_decimal(v.z);
         }
 
         // Redact "login, user, password" lines before logging.
@@ -202,6 +207,10 @@ namespace asterx {
             ", " + stream.interval;
         enforce_command_length(cmd);
         return cmd;
+    }
+
+    std::string build_ins_ant_lever_arm_command(Vec3 lever_arm_m) {
+        return set_vec3_command("setINSAntLeverArm", lever_arm_m);
     }
 
     ReceiverCapabilities parse_receiver_capabilities_reply(const std::string &reply) {
@@ -402,7 +411,7 @@ namespace asterx {
         send_command(set_orientation_command(settings), t);
         verify_imu_orientation_reply(send_command("getIMUOrientation", t), settings);
 
-        send_command(set_vec3_command("setINSAntLeverArm", settings.ant_lever_arm_m), t);
+        send_command(build_ins_ant_lever_arm_command(settings.ant_lever_arm_m), t);
         verify_ins_ant_lever_arm_reply(send_command("getINSAntLeverArm", t),
                                        settings.ant_lever_arm_m);
 
@@ -413,8 +422,9 @@ namespace asterx {
                                        settings.gnss_attitude_mode);
 
             const std::string cmd =
-                "setAttitudeOffset, " + fmt6(settings.attitude_offset_deg.heading_deg) +
-                ", " + fmt6(settings.attitude_offset_deg.pitch_deg);
+                "setAttitudeOffset, " +
+                fmt_command_decimal(settings.attitude_offset_deg.heading_deg) +
+                ", " + fmt_command_decimal(settings.attitude_offset_deg.pitch_deg);
             send_command(cmd, t);
             verify_attitude_offset_reply(send_command("getAttitudeOffset", t),
                                          settings.attitude_offset_deg);

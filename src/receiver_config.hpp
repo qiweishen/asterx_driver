@@ -84,6 +84,7 @@ struct ReceiverSettings {
 
 [[nodiscard]] bool is_valid_sbf_interval(const std::string& interval);
 [[nodiscard]] std::string build_sbf_output_command(const SbfStream& stream, int ips_id);
+[[nodiscard]] std::string build_ins_ant_lever_arm_command(Vec3 lever_arm_m);
 [[nodiscard]] ReceiverCapabilities parse_receiver_capabilities_reply(const std::string& reply);
 void validate_receiver_settings(const ReceiverSettings& settings);
 void verify_imu_orientation_reply(const std::string& reply, const ReceiverSettings& settings);

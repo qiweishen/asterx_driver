@@ -64,6 +64,13 @@ TEST(ReceiverConfig, BuildsLongSbfOutputWithoutTruncation) {
     EXPECT_NE(cmd.find("Block49"), std::string::npos);
 }
 
+TEST(ReceiverConfig, BuildsLeverArmWithReceiverPrecision) {
+    EXPECT_EQ(asterx::build_ins_ant_lever_arm_command(asterx::Vec3{0.0, 0.0, 0.0}),
+              "setINSAntLeverArm, 0.000, 0.000, 0.000");
+    EXPECT_EQ(asterx::build_ins_ant_lever_arm_command(asterx::Vec3{-0.0001, 1.2344, -2.3456}),
+              "setINSAntLeverArm, 0.000, 1.234, -2.346");
+}
+
 TEST(ReceiverConfig, RejectsOversizedSbfOutputCommand) {
     asterx::SbfStream stream;
     stream.stream_id = 1;
