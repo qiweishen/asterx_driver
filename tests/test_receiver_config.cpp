@@ -24,7 +24,7 @@ bool stream_contains(const std::vector<asterx::SbfStream>& streams,
 TEST(ReceiverConfig, DefaultStreamsUseOnChangeAndRequiredBlocks) {
     asterx::ReceiverSettings settings;
 
-    ASSERT_EQ(settings.streams.size(), 5u);
+    ASSERT_EQ(settings.streams.size(), 6u);
     for (const auto& stream: settings.streams) {
         EXPECT_EQ(stream.interval, "OnChange");
     }
@@ -38,6 +38,16 @@ TEST(ReceiverConfig, DefaultStreamsUseOnChangeAndRequiredBlocks) {
     EXPECT_TRUE(stream_contains(settings.streams, "ExtSensorStatus"));
     EXPECT_TRUE(stream_contains(settings.streams, "ReceiverStatus"));
     EXPECT_TRUE(stream_contains(settings.streams, "ChannelStatus"));
+    EXPECT_TRUE(stream_contains(settings.streams, "GPS"));
+    EXPECT_TRUE(stream_contains(settings.streams, "GLO"));
+    EXPECT_TRUE(stream_contains(settings.streams, "GAL"));
+    EXPECT_TRUE(stream_contains(settings.streams, "BDS"));
+    EXPECT_TRUE(stream_contains(settings.streams, "QZS"));
+    EXPECT_TRUE(stream_contains(settings.streams, "RawNavBits"));
+    EXPECT_TRUE(stream_contains(settings.streams, "ReceiverSetup"));
+    EXPECT_TRUE(stream_contains(settings.streams, "DiffCorr"));
+    EXPECT_TRUE(settings.configure_all_tracking);
+    EXPECT_EQ(settings.cn0_mask_dbhz, 0);
 }
 
 TEST(ReceiverConfig, ValidationRequiresLeverArm) {
@@ -80,6 +90,15 @@ TEST(ReceiverConfig, RejectsOversizedSbfOutputCommand) {
     }
 
     EXPECT_THROW((void) asterx::build_sbf_output_command(stream, 1),
+                 asterx::ConfigError);
+}
+
+TEST(ReceiverConfig, RejectsInvalidTrackingCn0Mask) {
+    asterx::ReceiverSettings settings;
+    settings.ant_lever_arm_configured = true;
+    settings.cn0_mask_dbhz = 61;
+
+    EXPECT_THROW(asterx::validate_receiver_settings(settings),
                  asterx::ConfigError);
 }
 

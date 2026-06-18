@@ -39,6 +39,13 @@ receiver:
       heading: 0.0
       pitch:   0.0
 
+  tracking:
+    # Reset receiver-side filters on startup so stale settings cannot silently
+    # disable a constellation/frequency. A low CN0 mask records weak raw
+    # observables too; filter them later in RTK/PPK if needed.
+    enable_all: true
+    cn0_mask_dbhz: 0
+
   # SBF streams to enable on the receiver. Each stream pushes a list of
   # blocks at a single rate (MsgInterval token). OnChange means the receiver's
   # natural renewal rate, avoiding driver-side decimation. Allowed intervals:
@@ -60,6 +67,13 @@ receiver:
       interval: "OnChange"
     - id:       5
       blocks:   [ "ReceiverStatus", "QualityInd", "ReceiverTime", "ChannelStatus" ]
+      interval: "OnChange"
+    - id:       6
+      # Navigation ephemerides, UTC/ionosphere models, raw nav bits and
+      # correction/setup context needed for self-contained RTK/PPK/RINEX export.
+      # Kept separate from the Measurements stream to avoid duplicate MeasEpoch.
+      blocks:   [ "GPS", "GLO", "GAL", "BDS", "QZS", "RawNavBits",
+                  "ReceiverSetup", "Commands", "DiffCorr" ]
       interval: "OnChange"
 
 output:

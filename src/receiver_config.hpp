@@ -62,6 +62,8 @@ struct ReceiverSettings {
         {3, {"AuxAntPositions","AttEuler","AttCovEuler","EndOfAtt"}, "OnChange"},
         {4, {"ExtSensorStatus","ExtSensorInfo","IMUSetup"},          "OnChange"},
         {5, {"ReceiverStatus","QualityInd","ReceiverTime","ChannelStatus"}, "OnChange"},
+        {6, {"GPS","GLO","GAL","BDS","QZS","RawNavBits","ReceiverSetup",
+             "Commands","DiffCorr"},                                 "OnChange"},
     };
 
     // Legacy config compatibility: load_config maps this to imu_orientation_mode.
@@ -80,6 +82,11 @@ struct ReceiverSettings {
     bool require_aux1{true};
     std::string gnss_attitude_mode{"MultiAntenna"};
     AttitudeOffset attitude_offset_deg{};
+
+    // Reset tracking-related filters so collection is not limited by stale
+    // receiver settings from a previous session.
+    bool configure_all_tracking{true};
+    int  cn0_mask_dbhz{0};
 };
 
 [[nodiscard]] bool is_valid_sbf_interval(const std::string& interval);

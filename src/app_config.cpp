@@ -100,6 +100,15 @@ void parse_receiver(const YAML::Node& n, ReceiverSettings& receiver) {
         }
     }
 
+    if (auto tr = n["tracking"]) {
+        if (tr["enable_all"]) {
+            receiver.configure_all_tracking = tr["enable_all"].as<bool>();
+        }
+        if (tr["cn0_mask_dbhz"]) {
+            receiver.cn0_mask_dbhz = tr["cn0_mask_dbhz"].as<int>();
+        }
+    }
+
     if (n["streams"] && n["streams"].IsSequence()) {
         receiver.streams.clear();
         for (const auto& s: n["streams"]) {

@@ -56,6 +56,9 @@ receiver:
     attitude_offset_deg:
       heading: 4.0
       pitch: -5.0
+  tracking:
+    enable_all: false
+    cn0_mask_dbhz: 12
 )yaml");
 
     const auto cfg = asterx::load_app_config(path.string());
@@ -64,6 +67,8 @@ receiver:
     EXPECT_DOUBLE_EQ(cfg.receiver.theta_x_deg, 1.0);
     EXPECT_DOUBLE_EQ(cfg.receiver.ant_lever_arm_m.y, -0.2);
     EXPECT_DOUBLE_EQ(cfg.receiver.attitude_offset_deg.pitch_deg, -5.0);
+    EXPECT_FALSE(cfg.receiver.configure_all_tracking);
+    EXPECT_EQ(cfg.receiver.cn0_mask_dbhz, 12);
     EXPECT_EQ(cfg.receiver.streams.front().interval, "OnChange");
     std::filesystem::remove(path);
 }

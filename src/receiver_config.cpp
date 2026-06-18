@@ -323,6 +323,9 @@ namespace asterx {
             !equals_ci(settings.gnss_attitude_mode, "MultiAntenna")) {
             throw ConfigError("receiver.gnss_attitude.mode must be none or MultiAntenna");
         }
+        if (settings.cn0_mask_dbhz < 0 || settings.cn0_mask_dbhz > 60) {
+            throw ConfigError("receiver.tracking.cn0_mask_dbhz must be in range 0..60 dB-Hz");
+        }
         if (settings.streams.empty()) {
             throw ConfigError("receiver.streams must contain at least one stream");
         }
@@ -406,7 +409,19 @@ namespace asterx {
             send_command(cmd, t);
         }
 
-        // 5) IMU startup mode, orientation, and antenna lever arm.
+        // 5) Reset tracking/usage filters so all supported observables can be
+        //    generated. setSignalTracking restarts tracking loops, so do this
+        //    before enabling output streams.
+        if (settings.configure_all_tracking) {
+            send_command("setSatelliteTracking, all", t);
+            send_command("setSignalTracking, all", t);
+            send_command("setSignalUsage, all, all", t);
+            send_command("setCN0Mask, all, " + std::to_string(settings.cn0_mask_dbhz), t);
+            spdlog::info("[receiver] tracking reset to all signals/satellites; CN0 mask={} dB-Hz",
+                         settings.cn0_mask_dbhz);
+        }
+
+        // 6) IMU startup mode, orientation, and antenna lever arm.
         send_command("setIMUStartupDataMode, " + settings.imu_startup_data_mode, t);
         send_command(set_orientation_command(settings), t);
         verify_imu_orientation_reply(send_command("getIMUOrientation", t), settings);
@@ -415,7 +430,7 @@ namespace asterx {
         verify_ins_ant_lever_arm_reply(send_command("getINSAntLeverArm", t),
                                        settings.ant_lever_arm_m);
 
-        // 6) Dual-antenna GNSS attitude setup and offset confirmation.
+        // 7) Dual-antenna GNSS attitude setup and offset confirmation.
         {
             send_command("setGNSSAttitude, " + settings.gnss_attitude_mode, t);
             verify_gnss_attitude_reply(send_command("getGNSSAttitude", t),
@@ -430,7 +445,7 @@ namespace asterx {
                                          settings.attitude_offset_deg);
         }
 
-        // 7) SBF stream membership + intervals.
+        // 8) SBF stream membership + intervals.
         for (const auto &s: settings.streams) {
             if (s.blocks.empty()) continue;
             std::string blocks_csv = join(s.blocks, '+');
